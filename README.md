@@ -166,6 +166,44 @@ To generate a single tone at the carrier frequency,
 Useful when generating any signal without PAPR matters.  
 ![image](https://github.com/user-attachments/assets/e664bbf1-d2d1-4648-b28a-ec3d1c199009)  
 
+### Generating the 5.340 GHz Single Tone 
+For TinySA Ultra "Calibration above 5.34 GHz". See the [guide here: tinySA Ultra harmonic mode](https://tinysa.org/wiki/pmwiki.php?n=TinySA4.Harmonic).   
+
+DISCLAIMER: **ALWAYS CONNECT THE ATTENUATOR**, or you could accidentally damage the SA's input.  
+The output performance is limited by the cheap crystal inside the blue square.  
+**Use it at your own risk.**  
+```
+# 1. Set the adapter to monitor mode (see nic_quick_test.sh)
+# Any 5 GHz channel is ok for the script argument
+sudo ./nic_quick_test.sh <wlan0> 60
+
+# 2. Set the center frequency to 5.340 GHz (Channel 68)
+# The frequency is usually disabled due to wireless regulation, so use /proc
+echo "68 20" > /proc/net/rtl88x2eu/<wlan0>/monitor_chan_override   # freq = 5000+68*5 = 5340 MHz
+
+# 3. Generate single tone
+# The blue square has two IPEX connector J0 and J1 (see BL-M8812EU2 datasheet)
+echo "1 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # Output at J0 only
+# echo "1 1" > /proc/net/rtl88x2eu/<wlan0>/single_tone              # Output at J1 only
+# echo "1 4" > /proc/net/rtl88x2eu/<wlan0>/single_tone              # Output at both J0 and J1
+
+# 4. Change to some other frequency (e.g. manually tuning by ```leveloffset harmonic```)
+echo "0 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # !! ALWAYS DISABLE THE OUTPUT FIRST !!
+echo "69 20" > /proc/net/rtl88x2eu/<wlan0>/monitor_chan_override   # 5345 MHz
+echo "1 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # Output at J0 only
+# ... do some calibration stuff
+echo "0 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # !! ALWAYS DISABLE THE OUTPUT FIRST !!
+echo "67 20" > /proc/net/rtl88x2eu/<wlan0>/monitor_chan_override   # 5335 MHz
+echo "1 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # Output at J0 only
+# ... do some calibration stuff
+
+# 5. disable the output
+echo "0 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # !! DISABLE THE OUTPUT !!
+
+```
+![image](https://github.com/user-attachments/assets/0a17dd57-1cee-49aa-9d05-45c0e25097cc)
+
+
 ## Use with OpenIPC  
 The driver has been integrated into the default FPV firmware for SSC30KQ, SSC338Q, and SSC377DE since [this commit](https://github.com/OpenIPC/firmware/commit/64228b686002b2fd8fd2cbf722a1a6cb7aad9650).  
 For other platforms, see the tutorial [here in OpenIPC Wiki](https://github.com/OpenIPC/wiki/blob/master/en/fpv-bl-m8812eu2-wifi-adaptors.md).  
