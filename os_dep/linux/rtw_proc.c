@@ -6008,14 +6008,13 @@ static ssize_t proc_set_dis_cca(struct file *file, const char __user *buffer, si
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	struct dm_struct *dm;
-	dm = adapter_to_phydm(padapter);
-	
 	char tmp[32];
 	u32 en;
 
+	dm = adapter_to_phydm(padapter);
 	if (!padapter)
 		return -EFAULT;
-		
+
 	if (count < 1) {
 		RTW_INFO("Set dis_cca Argument error.\n");
 		return -EFAULT;
@@ -6090,10 +6089,10 @@ static ssize_t proc_set_single_tone(struct file *file, const char __user *buffer
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	struct dm_struct *dm;
-	dm = adapter_to_phydm(padapter);
-	
 	char tmp[32];
 	u32 en, rf_path;
+	
+	dm = adapter_to_phydm(padapter);
 
 	if (!padapter)
 		return -EFAULT;
