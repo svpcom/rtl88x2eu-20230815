@@ -169,8 +169,7 @@ CONFIG_SECURE_DMA = n
 CONFIG_SECURE_DMA_MEM_ADDR = 0
 CONFIG_SECURE_DMA_MEM_SIZE = 3686400
 ###################### Platform Related #######################
-CONFIG_PLATFORM_AUTODETECT = y
-CONFIG_PLATFORM_I386_PC = n
+CONFIG_PLATFORM_I386_PC = y
 CONFIG_PLATFORM_ARM_GENERIC = n
 CONFIG_PLATFORM_ARM64 = n
 CONFIG_PLATFORM_ARM64_RPI = n
@@ -1407,28 +1406,6 @@ endif
 ifeq ($(CONFIG_RTW_DISABLE_HW_PDN), y)
 EXTRA_CFLAGS += -DCONFIG_RTW_DISABLE_HW_PDN
 endif
-
-# *** AUTODETECT ***
-ifeq ($(CONFIG_PLATFORM_AUTODETECT), y)
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
-EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211 -DRTW_USE_CFG80211_STA_EVENT
-
-#SUBARCH := $(shell uname -m)
-SUBARCH := $(shell uname -m | sed -e "s/i.86/i386/; s/ppc/powerpc/; s/armv.l/arm/; s/aarch64/arm64/; s/riscv.*/riscv/;")
-ARCH ?= $(SUBARCH)
-
-CROSS_COMPILE ?=
-KVER ?= $(shell uname -r)
-KSRC := /lib/modules/$(KVER)/build
-MODDESTDIR := /lib/modules/$(KVER)/kernel/drivers/net/wireless/
-INSTALL_PREFIX :=
-STAGINGMODDIR := /lib/modules/$(KVER)/kernel/drivers/staging
-
-# Platform Specific Flags may be Needed in some Situations
-#EXTRA_CFLAGS += -DCONFIG_PLATFORM_ANDROID
-# End of Platform Specific Flags
-endif
-# *** End AUTODETECT ***
 
 ifeq ($(CONFIG_PLATFORM_I386_PC), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_USB_INBAND
