@@ -1891,9 +1891,9 @@ config_phydm_switch_channel_8822e(struct dm_struct *dm, u8 central_ch)
 	/* 1. AGC table selection */
 	if (central_ch <= 14) {
 		phydm_set_agc_table_8822e(dm, dm->bt_is_linked);
-	} else if (central_ch >= 36 && central_ch <= 64) {
+	} else if (central_ch >= 16 && central_ch < 80) {
 		phydm_ofdm_agc_tab_sel_8822e(dm, OFDM_5G_LOW_BAND_8822E);
-	} else if ((central_ch >= 100) && (central_ch <= 144)) {
+	} else if ((central_ch >= 80) && (central_ch <= 144)) {
 		phydm_ofdm_agc_tab_sel_8822e(dm, OFDM_5G_MID_BAND_8822E);
 	} else { /*if (central_ch >= 149)*/
 		phydm_ofdm_agc_tab_sel_8822e(dm, OFDM_5G_HIGH_BAND_8822E);
