@@ -9,6 +9,36 @@ PRs welcome.
 BL-M8812EU2 datasheet: [BL-M8812EU2_datasheet_V1.0.1.1_240511.pdf](https://github.com/user-attachments/files/16627775/BL-M8812EU2_datasheet_V1.0.1.1_240511.pdf)  
 Or any adaptor based on RTL8812EU/RTL8822EU should be ok.  
 
+## Installation
+### Platform Configuration
+For arm (32-bit), run: 
+```
+sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
+sed -i 's/CONFIG_PLATFORM_ARM_RPI = n/CONFIG_PLATFORM_ARM_RPI = y/g' Makefile
+```
+Or, for arm64, run: 
+```
+sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
+sed -i 's/CONFIG_PLATFORM_ARM64_RPI = n/CONFIG_PLATFORM_ARM64_RPI = y/g' Makefile
+```
+### Build / Install with DKMS
+Install DKMS on Debian(-based) system: 
+```
+$ sudo apt-get install dkms
+```
+Install: 
+```
+$ sudo ./dkms-install.sh
+```
+Uninstall: 
+```
+$ sudo ./dkms-remove.sh
+```
+### Build / Install with make
+```
+$ make
+$ sudo make install
+```
 ## Increasing TX Power in Monitor Mode 
 The driver supports changing TX power dynamically with no additional patch needed.  
 Just add ```rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0``` when ```insmod```, then use ```iw set txpower fixed```.
@@ -34,6 +64,12 @@ sudo insmod 8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0
 sudo iw dev wlan0 set txpower fixed <mBm>
 ```
 
+```iw``` will not show the correct value if the TX power has been overridden.  
+To check the current setting, the only table is to ```cat``` ```/proc/net/rtl88x2eu/wlan0/tx_power_idx```.  
+
+Note: TX power setting for Realtek chips is some internal, dimensionless value, only positively related to the real TX power. One of the goals in "MP calibration" is to find the value set of the TX power index, to keep the TX power (measured by some really expensive RF instruments when MP) in every channel at the same level the datasheet gives, then save those values into the crab chip's eFuse. 
+That's the only thing that could match the power index to real dBm without any measurement. And of course, the override value breaks that.  
+
 ## Narrowband Transmission
 See the RF spectrum visualized [here](https://www.youtube.com/watch?v=EUj-wSgoY_E) on YouTube  
 
@@ -43,32 +79,27 @@ Please open an issue if you find anything interesting.
 So, according to the module vendor's document and my test using a HackRF, that's all I know:   
 
 ### Injection in Different Bandwidth
-#### 5/10MHz Injection
+#### 10MHz Injection
 To transmit packets in monitor mode using packet injection:
  - Set ```iw <wlan> set channel <same_channel> <10MHz>``` on both air & ground
  - Set the inject packet's radiotap header with any **20MHz bandwidth** modulation (legacy/HT20/VHT20; e.g. ```-B 20``` in ```wfb_tx```) 
-Then the packet is actually transmitted in 5MHz/10MHz bandwidth, which seems like being achieved by simply underclocking the baseband.  
+Then the packet is actually transmitted in 10MHz bandwidth, which seems like being achieved by simply underclocking the baseband.  
 It's the same on the receiver side, though in which the radiotap header in received packets still indicates a 20MHz bandwidth. You can check that with any SDR receiver or spectrum analyzer.   
 
 ##### Notes About "Devices or Resources Busy" 
 When ```iw``` says ```Devices or Resources Busy (-16)```, check ```iw <wlan> info``` if the ```iw``` recognized the adaptor is in monitor mode.   
-If not, ```iw <wlan> set monitor```, then try setting 5MHz/10MHz again.  
+If not, ```iw <wlan> set monitor```, then try setting 10MHz again.  
 That's because:  
 1. The crab driver supports both WEXT and cfg80211 APIs, but it seems that it's not that robust and there's some conflicts exist
 2. the cfg80211 API checks [here](https://github.com/OpenIPC/linux/blob/eb50a943c26845925ff11ccb1651c40fa02c105e/net/wireless/chan.c#L862) if there's any other interface is not in monitor mode
 3. If the monitor mode is set by ```iwconfig```, the process is done by calling the old WEXT APIs, so the cfg80211-based ```iw``` may not get the latest status and think the interface is still in managed mode
 
 ##### Notes About 5MHz 
-EXPERIMENTAL 5MHz support is not in the main branch, I've put that in [another branch here](https://github.com/libc0607/rtl88x2eu-20230815/tree/5mhz_bw).   
-It works by fixing the config in the DAC clock setting register (See [this commit](https://github.com/libc0607/rtl88x2eu-20230815/commit/67dbbff1f01b8edd5b532c2a2c6e719452740ff5)), but it still needs testing as there are no register-level documents available and no one knows if those changes will affect the 20/40/80MHz transmission.  
- 
-The register value is from the RTL8812CU driver, which works well in 5MHz BW. The RTL88x2Cx and RTL88x2Ex share the same internal codename "Jaguar3" so I've just assumed that they have some common register defines, and it works.   
-Tested between RTL8812EU and RTL8812CU ([driver](https://github.com/libc0607/rtl88x2cu-20230728)), both TX and RX.  
-
-**Update**:  Some leakage (mirror?) can be observed in the 5MHz mode, and I have no idea how to configure the DAC clock properly as there are no even definitions in .h files. So, 5MHz is not recommended. However, I'll keep that branch for further research. 
+Some leakage (mirror?) can be observed in the 5MHz mode, and I have no idea how to configure the DAC clock properly as there are no even definitions in .h files. So, 5MHz is not recommended. However, I'll keep it in [another branch here](https://github.com/libc0607/rtl88x2eu-20230815/tree/5mhz_bw) for further research. 
+If you need 5MHz BW on the 5.8GHz band, check 8812cu/8731bu/ath9k.
 
 ##### Note about Changing TX Power in Narrowband Modes
-Changing TX power by ```iw``` will not work when injecting with 5/10MHz BW.  
+Changing TX power by ```iw``` will not work when injecting with 10MHz BW.  
 You should manually set BW back to 20MHz, set TX power, then set BW back again.  
 
 #### 20/40/80MHz Injection
@@ -94,6 +125,9 @@ To set the adaptor to some "irregular" frequency, ```cat /proc/net/rtl88x2eu/<wl
 I decided to use procfs is that it doesn't need any changes in user-space tools, e.g. iw, hostapd.  
 Of course, you can use this "procfs API" to set regular channels like 149 or 36. Might be useful when developing any Wi-Fi-based broadcast FPV system with frequency hopping and automatic bandwidth.  
 
+I recommend using ```iw``` to set the channel first if the channel is usable. Only use the procfs method for irregular.  
+The channel can only be set to any frequency with a 5MHz step since the channel number was directly written into some register, not some divider of the synthesizer. 
+
 DISCLAIMER:  
 Some chips' synthesizer's PLL may not lock on some frequency. There's no guarantee of its performance. (Actually, TX power and distortion seem worse in these channels as it's not calibrated. But less interference - it's an either-or)   
 Unlocking the frequency may damage your hardware and I'm not gonna pay for it. Use it at your own risk.  
@@ -115,7 +149,7 @@ The value you're setting is L2H. The H2L is automatically set 8dB lower.
 
 ### Disable CCA (EXPERIMENTAL)
 ```echo "1" > /proc/net/rtl8812eu/<wlan0>/dis_cca```  
-Needs test.  
+Needs test. 10/20MHz BW only.  
 
 ## ACK Timeout 
 Provided by Realtek.
@@ -138,7 +172,11 @@ DISCLAIMER: There's no guarantee of its performance.
 
 ## Noise Monitor 
 Not working. Enabled every macro (like ```CONFIG_BACKGROUND_NOISE_MONITOR```) I could find and the readouts kept zero.  
-If you know something about it, please tell us in issue.  
+
+Update: The code controlled by ```CONFIG_BACKGROUND_NOISE_MONITOR``` is dedicated to Jaguar(1) series (e.g. 8812au), not for Jaguar3 (8812cu/eu). 
+The code used fix gain (IGI), gated the clock of the baseband & MAC, read ADC data of the I/Q channel via some debug register, calculated the magnitude (can represent the noise floor), and then resumed the clock. So it's doable in any chipset as long as there's an ADC debug register with the definition known, but unfortunately not for 8812eu now.
+
+If you know anything more about it, please tell us in the issue.  
 
 ## Thermometer  
 The chip contains a thermometer for calibrating the RF part dynamically. It can be used to estimate the chip temperature.  
@@ -165,6 +203,8 @@ To generate a single tone at the carrier frequency,
 
 Useful when generating any signal without PAPR matters.  
 ![image](https://github.com/user-attachments/assets/e664bbf1-d2d1-4648-b28a-ec3d1c199009)  
+
+The amplitude of the sine wave seems can not be controlled. It's only a test mode for the LO, so the functionality may not be good enough.
 
 ### Generating the 5.340 GHz Single Tone 
 For TinySA Ultra "Calibration above 5.34 GHz". See the [guide here: tinySA Ultra harmonic mode](https://tinysa.org/wiki/pmwiki.php?n=TinySA4.Harmonic).   
