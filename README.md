@@ -64,10 +64,9 @@ sudo insmod 8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0
 sudo iw dev wlan0 set txpower fixed <mBm>
 ```
 
-```iw``` will not show the correct value if the TX power has been overridden.  
-To check the current setting, the only table is to ```cat``` ```/proc/net/rtl88x2eu/wlan0/tx_power_idx```.  
+```iw <wlan0> info``` will show the overridden values. However, the unit is not the real, accurate, dBm. When talking about dBm/milliwatts, only trust good spectrum analyzers.  
 
-Note: TX power setting for Realtek chips is some internal, dimensionless value, only positively related to the real TX power. One of the goals in "MP calibration" is to find the value set of the TX power index, to keep the TX power (measured by some really expensive RF instruments when MP) in every channel at the same level the datasheet gives, then save those values into the crab chip's eFuse. 
+TX power setting for Realtek chips is some internal, dimensionless value, only positively related to the real TX power. One of the goals in "MP calibration" is to find the value set of the TX power index, to keep the TX power (measured by some really expensive RF instruments when MP) in every channel at the same level the datasheet gives, then save those values into the crab chip's eFuse. 
 That's the only thing that could match the power index to real dBm without any measurement. And of course, the override value breaks that.  
 
 ## Narrowband Transmission
@@ -243,6 +242,9 @@ echo "0 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # !! DISABLE 
 ```
 ![image](https://github.com/user-attachments/assets/0a17dd57-1cee-49aa-9d05-45c0e25097cc)
 
+## Transmit Beamforming in Monitor Mode (Without AP/STA assoc)
+It's under research, see [this branch](https://github.com/libc0607/rtl88x2eu-20230815/tree/beamforming_research) for details.  
+It would be great if someone could help ...
 
 ## Use with OpenIPC  
 The driver has been integrated into the default FPV firmware for SSC30KQ, SSC338Q, and SSC377DE since [this commit](https://github.com/OpenIPC/firmware/commit/64228b686002b2fd8fd2cbf722a1a6cb7aad9650).  
