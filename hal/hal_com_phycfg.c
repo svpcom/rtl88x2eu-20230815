@@ -1720,8 +1720,6 @@ static void phy_set_target_txpwr(
 		return;
 	}
 
-	Value = get_overridden_tx_power_index(Value);
-
 	if (Band == BAND_ON_2_4G)
 		pHalData->target_txpwr_2g[RfPath][RateSection] = Value;
 	else /* BAND_ON_5G */
@@ -2354,8 +2352,11 @@ phy_set_tx_power_index_by_rate_section(
 		goto exit;
 
 	for (i = 0; i < rates_by_sections[rs].rate_num; ++i) {
+<<<<<<< HEAD
 		powerIndex = (u32)get_overridden_tx_power_index((u8)powerIndex);
 		// to-do: is that really overrided? thinking when doing copy & paste
+=======
+>>>>>>> parent of f3584af (Merge PR#32@svpcom/rtl8812au: add ability to override TX power index dynamically)
 #if DBG_TX_POWER_IDX
 		struct txpwr_idx_comp tic;
 
@@ -4009,7 +4010,6 @@ PHY_SetTxPowerIndex(
 		u8				Rate
 )
 {
-	PowerIndex = (u32)get_overridden_tx_power_index((u8)PowerIndex);
 	rtw_hal_set_tx_power_index(pAdapter, PowerIndex, RFPath, Rate);
 }
 
