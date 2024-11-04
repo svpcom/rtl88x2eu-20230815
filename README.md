@@ -94,8 +94,9 @@ That's because:
 3. If the monitor mode is set by ```iwconfig```, the process is done by calling the old WEXT APIs, so the cfg80211-based ```iw``` may not get the latest status and think the interface is still in managed mode
 
 ##### Notes About 5MHz 
-Some leakage (mirror?) can be observed in the 5MHz mode, and I have no idea how to configure the DAC clock properly as there are no even definitions in .h files. So, 5MHz is not recommended. However, I'll keep it in [another branch here](https://github.com/libc0607/rtl88x2eu-20230815/tree/5mhz_bw) for further research. 
-If you need 5MHz BW on the 5.8GHz band, check 8812cu/8731bu/ath9k.
+Some leakage (mirror?) can be observed in the 5MHz TX, and I have no idea how to configure the DAC clock properly as there are no even definitions in .h files. So, 5MHz is not recommended. However, I'll keep it in [another branch here](https://github.com/libc0607/rtl88x2eu-20230815/tree/5mhz_bw) for further research.  
+But 5MHz RX seems working. Weird...  
+If you need 5MHz BW on the 5.8GHz band, check [8812cu](https://github.com/libc0607/rtl88x2cu-20230728)/[8731bu](https://github.com/libc0607/rtl8733bu-20230626)/[ath9k](https://github.com/openwrt/openwrt/blob/main/package/kernel/mac80211/patches/ath9k/512-ath9k_channelbw_debugfs.patch).  
 
 ##### Note about Changing TX Power in Narrowband Modes
 Changing TX power by ```iw``` will not work when injecting with 10MHz BW.  
@@ -151,7 +152,7 @@ The value you're setting is L2H. The H2L is automatically set 8dB lower.
 Needs test. 10/20MHz BW only.  
 
 ## ACK Timeout 
-Provided by Realtek.
+Provided by Realtek. Seems tunable from 0\~255 (unit: us).  
 e.g. Set ACK timeout to 100us:  
 ```echo 100 > /proc/net/rtl88x2eu/<wlanX>/ack_timeout```  
 
@@ -242,9 +243,32 @@ echo "0 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # !! DISABLE 
 ```
 ![image](https://github.com/user-attachments/assets/0a17dd57-1cee-49aa-9d05-45c0e25097cc)
 
-## Transmit Beamforming in Monitor Mode (Without AP/STA assoc)
-It's under research, see [this branch](https://github.com/libc0607/rtl88x2eu-20230815/tree/beamforming_research) for details.  
-It would be great if someone could help ...
+## TX Beamforming in Monitor Mode
+**EXPERIMENTAL, MAY NOT WORKING, NEEDS TEST**.   
+See [here](https://github.com/libc0607/rtl88x2eu-20230815/blob/beamforming_research/README.md) for details.  
+Compatible with [my RTL88x2CU driver](https://github.com/libc0607/rtl88x2cu-20230728).  
+### Usage
+```
+# ./bf_mon.sh start <WLAN_DRV> <NIC> <LOCAL_MAC> <REMOTE_MAC> <Bandwidth:20/40/80> <ACK_TIMEOUT:33~255> <INTERVAL:second>
+# ./bf_mon.sh stop  <WLAN_DRV> <NIC>
+```
+The ```LOCAL_MAC``` and ```REMOTE_MAC``` should be the original MAC address from eFuse.  
+When injecting -- disable STBC, use MCS 0\~7 for HT, or MCS0~9/NSS1 for VHT.  
+The command should run on both air & ground.  
+```
+# Start 
+./bf_mon.sh start rtl88x2eu wlan0 00:66:77:88:99:aa 00:11:22:33:44:55 20 255 0.1
+# Stop
+./bf_mon.sh stop rtl88x2eu wlan0
+```
+```
+# Check status
+# Config
+cat /proc/net/rtl88x2eu/<wlan0>/bf_monitor_conf
+# Information from Compressed Beamforming Report (CBR) frame 
+cat /proc/net/rtl88x2eu/<wlan0>/bf_monitor_trig
+# And, dmesg
+```
 
 ## Use with OpenIPC  
 The driver has been integrated into the default FPV firmware for SSC30KQ, SSC338Q, and SSC377DE since [this commit](https://github.com/OpenIPC/firmware/commit/64228b686002b2fd8fd2cbf722a1a6cb7aad9650).  
