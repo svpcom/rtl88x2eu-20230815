@@ -247,13 +247,17 @@ echo "0 0" > /proc/net/rtl88x2eu/<wlan0>/single_tone               # !! DISABLE 
 **EXPERIMENTAL, MAY NOT WORKING, NEEDS TEST**.   
 See [here](https://github.com/libc0607/rtl88x2eu-20230815/blob/beamforming_research/README.md) for details.  
 Compatible with [my RTL88x2CU driver](https://github.com/libc0607/rtl88x2cu-20230728).  
+
+It can inject any VHT NDP+NDPA packet, with configurable TA/RA address, P_AID, sounding token, and ACK timeout (if needed).  
+
 ### Usage
+Compile the driver with [CONFIG_BEAMFORMING_MONITOR](https://github.com/libc0607/rtl88x2eu-20230815/blob/4589b466d5337e7dce36768ae3a7a5ac0dfd0336/Makefile#L25) enable, and  
 ```
 # ./bf_mon.sh start <WLAN_DRV> <NIC> <LOCAL_MAC> <REMOTE_MAC> <Bandwidth:20/40/80> <ACK_TIMEOUT:33~255> <INTERVAL:second>
 # ./bf_mon.sh stop  <WLAN_DRV> <NIC>
 ```
 The ```LOCAL_MAC``` and ```REMOTE_MAC``` should be the original MAC address from eFuse.  
-When injecting -- disable STBC, use MCS 0\~7 for HT, or MCS0~9/NSS1 for VHT.  
+When injecting data packet -- disable STBC, use MCS 0\~7 for HT, or MCS0~9/NSS1 for VHT.  
 The command should run on both air & ground.  
 ```
 # Start 
