@@ -9,6 +9,9 @@ PRs welcome.
 BL-M8812EU2 datasheet: [BL-M8812EU2_datasheet_V1.0.1.1_240511.pdf](https://github.com/user-attachments/files/16627775/BL-M8812EU2_datasheet_V1.0.1.1_240511.pdf)  
 Or any adaptor based on RTL8812EU/RTL8822EU should be ok.  
 
+## Known Issue
+[Injection instability on 40MHz channels](https://github.com/libc0607/rtl88x2eu-20230815/issues/7) (Maybe HW/FW bug, help wanted)  
+
 ## Installation
 ### Platform Configuration
 For arm (32-bit), run: 
@@ -170,10 +173,84 @@ EXPERIMENTAL, may not work.
 
 DISCLAIMER: There's no guarantee of its performance.
 
-## Noise Monitor 
-Not working. Enabled every macro (like ```CONFIG_BACKGROUND_NOISE_MONITOR```) I could find and the readouts kept zero.  
+## ~~Noise Monitor~~ ACS
+It reports the channel status. Including ```Quality(%)```,  ```Utilization(%)``` (```WIFI Util(%)```+```Interference Util(%)```), ```Noise DBM```... etc.
+### Usage
+#### Enable it in Makefile
+It's enabled by default [here](https://github.com/libc0607/rtl88x2eu-20230815/blob/0fe98486a330b5a396a1f9cf152f4e280572fc7f/Makefile#L27).
+```
+# ACS
+EXTRA_CFLAGS += -DCONFIG_RTW_ACS
+EXTRA_CFLAGS += -DCONFIG_RTW_ACS_DBG
+```
+#### Trigger Scan 
+```iw scan``` can trigger. 
+e.g. Do a full scan in all available channels:
+```
+$ sudo iw wlan0 scan passive 
+```
+Scan only specified frequencies: 
+```
+$ sudo iw wlan0 scan freq 5745 5765 5785 5805 5825 passive
+```
+We don't need the ```iw``` output here -- the driver's internal status will be updated and that's what we need.  
 
-Update: The code controlled by ```CONFIG_BACKGROUND_NOISE_MONITOR``` is dedicated to Jaguar(1) series (e.g. 8812au), not for Jaguar3 (8812cu/eu). 
+#### Result Readout & Explain
+Scenario example:  
+```wlan1``` is using ```wfb-ng``` transmitting in channel ```161``` with full bandwidth, other channels clear  
+```wlan0``` as scanner  
+Channel status scanned by ```sudo iw wlan0 scan freq 5745 5765 5785 5805 5825 passive```  
+
+```cat /proc/net/rtl88x2eu/wlan0/acs```:
+```
+========== ACS (VER-3) ==========
+Best 24G Channel:2
+Best 5G Channel:14
+
+Advanced setting - scan_type:A, ch_ms:0(ms), igi:0x00, bw:0
+BW  20MHz
+Index   CH  BSS  CLM(%)  NHM(%)  NHM(dBm)  ITF
+...
+   47  149    0       0       0       -93    0
+   48  153    0       1       0       -93    0
+   49  157    0       1      86       -81   57
+   50  161    0      93       0       -93   31
+   51  165    0       2      89       -81   59
+```
+```cat /proc/net/rtl88x2eu/wlan0/chan_info```:
+```
+BW  20MHz
+Index   CH  Quality(%)  Availability(%)  Utilization(%)  WIFI Util(%)  Interference Util(%)
+...
+   47  149      100            100              0              0              0
+   48  153      100             99              1              1              0
+   49  157       43             13             87              1             86
+   50  161       69              7             93             93              0
+   51  165       41              9             91              2             89
+```
+
+In which: 
+ - ```Quality(%)```/```(100-ITF)```: Channel Quality evaluation
+ - ```WIFI Util(%)```/```CLM(%)```: Air time occupied by Wi-Fi frames
+ - ```Interference Util(%)```/```NHM(%)```: Air time occupied by non-Wi-Fi frames (interference / can not be decoded by Wi-Fi baseband)
+ - ```NHM(dBm)```: Noise (interference / non-Wi-Fi frames) power occupying air time
+ - ```Utilization(%)```/```100-Availability(%)```: = ```WIFI Util(%)``` + ```Interference Util(%)```
+
+In this example -- the channel ```161``` is filled with effective traffic (```WIFI Util(%) = 93%```), and two adjacent channels ```157``` and ```165``` were interfered by leakage (```Interference Util(%) > 80%```, ```NHM(dBm) = -81dBm```), but did not contain any real payloads (low ```WIFI Util(%)```).  
+Both three channels have low ```Quality(%)``` and ```Availability(%)``` here.  
+
+#### Advanced Settings
+```/proc/net/rtl88x2eu/wlan0/acs``` accepts several arguments. No need to tune these in most scenarios.   
+```
+echo "<acs_state:1-start/0-stop> \
+<scan_type:0-passive/1-active/2-mixed> \
+<scan_ch_time_ms> \
+<igi:(0x)1e~(0x)5f> \
+<BW:0-20M/1-40M/2-80M>\" > /proc/net/rtl88x2eu/wlan0/acs
+```
+
+#### CONFIG_BACKGROUND_NOISE_MONITOR
+Note: The code controlled by ```CONFIG_BACKGROUND_NOISE_MONITOR``` is dedicated to Jaguar(1) series (e.g. 8812au), not for Jaguar3 (8812cu/eu). 
 The code used fix gain (IGI), gated the clock of the baseband & MAC, read ADC data of the I/Q channel via some debug register, calculated the magnitude (can represent the noise floor), and then resumed the clock. So it's doable in any chipset as long as there's an ADC debug register with the definition known, but unfortunately not for 8812eu now.
 
 If you know anything more about it, please tell us in the issue.  
